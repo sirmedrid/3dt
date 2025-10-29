@@ -15,6 +15,9 @@ from components.power_ups import init_power_ups, award_power_up, display_power_u
 from components.chat import init_chat, display_chat, send_game_event
 from database.manager import DatabaseManager
 
+# Toggle to make Dev Tools visible to anyone (temporary)
+FORCE_DEVTOOLS = True
+
 # Initialize all session state
 if 'board' not in st.session_state:
     st.session_state.board = np.full((4, 4, 4), '', dtype=object)
@@ -383,17 +386,18 @@ for key in ['game_container', 'status_container', 'board_container']:
 st.title("3D Tic Tac Toe")
 st.markdown("**4x4x4 Cube** - Get 4 in a row to win!")
 
-# Dev Tools section at the top
-with st.expander("🛠️ Dev Tools"):
-    if st.button("Seed Database with Sample Data", type="primary"):
-        try:
-            DatabaseManager.seed_database()
-            st.success("✅ Database seeded with sample users and games. Sample users (password is 'password'):\n- alice\n- bob\n- carol\n- dave")
-            st.experimental_rerun()
-        except Exception as e:
-            st.error(f"Failed to seed database: {str(e)}")
-            if "DB_URL not found in Streamlit secrets" in str(e):
-                st.info("💡 Make sure to add your DB_URL in your Streamlit secrets. [Learn more](https://docs.streamlit.io/streamlit-cloud/get-started/deploy-an-app/connect-to-data-sources/secrets-management)")
+# Dev Tools section at the top (visible to anyone when FORCE_DEVTOOLS=True)
+if FORCE_DEVTOOLS or st.session_state.get('user'):
+    with st.expander("🛠️ Dev Tools (temporary - visible to all)"):
+        if st.button("Seed Database with Sample Data", type="primary"):
+            try:
+                DatabaseManager.seed_database()
+                st.success("✅ Database seeded with sample users and games. Sample users (password is 'password'):\n- alice\n- bob\n- carol\n- dave")
+                st.experimental_rerun()
+            except Exception as e:
+                st.error(f"Failed to seed database: {str(e)}")
+                if "DB_URL not found in Streamlit secrets" in str(e):
+                    st.info("💡 Make sure to add your DB_URL in your Streamlit secrets. [Learn more](https://docs.streamlit.io/streamlit-cloud/get-started/deploy-an-app/connect-to-data-sources/secrets-management)")
 
 # Render auth UI (sidebar) and user stats
 try:
