@@ -5,6 +5,7 @@ streamlit-confetti
 streamlit-extras
 streamlit-js-eval
 sqlalchemy
+streamlit-particles
 bcrypt
 pyscopg2
 python-dotenv
