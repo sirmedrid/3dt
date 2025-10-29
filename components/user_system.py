@@ -13,6 +13,10 @@ def init_user_system():
         st.session_state.is_admin = False
 
 def render_auth_ui():
+    # Try to restore session from cookie
+    if 'user' not in st.session_state and 'stored_user' in st.session_state:
+        st.session_state.user = st.session_state.stored_user
+    
     if st.session_state.user:
         st.sidebar.markdown(f"## Welcome, {st.session_state.user}!")
         
@@ -30,6 +34,7 @@ def render_auth_ui():
         
         if st.sidebar.button("Logout"):
             st.session_state.user = None
+            st.session_state.stored_user = None
             st.session_state.is_admin = False
             st.rerun()
         return True
@@ -66,10 +71,13 @@ def render_auth_ui():
             st.markdown("### Login")
             username = st.text_input("Username")
             password = st.text_input("Password", type="password")
+            remember_me = st.checkbox("Remember me")
             
             if st.form_submit_button("Login"):
                 if DatabaseManager.verify_user(username, password):
                     st.session_state.user = username
+                    if remember_me:
+                        st.session_state.stored_user = username
                     st.rerun()
                 else:
                     st.error("Invalid username or password!")

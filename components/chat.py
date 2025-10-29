@@ -24,42 +24,46 @@ def display_chat():
     if not st.session_state.user:
         return
     
-    st.sidebar.markdown("---")
+    st.markdown("---")
+    st.markdown("### 💬 Game Chat")
     
-    # Chat toggle
-    if st.sidebar.button("💬 Toggle Chat"):
-        st.session_state.chat_expanded = not st.session_state.chat_expanded
+    # Create a container for the chat history
+    chat_container = st.container()
     
-    if not st.session_state.chat_expanded:
-        return
+    # Create a form for the message input
+    with st.form(key="chat_form", clear_on_submit=True):
+        cols = st.columns([4, 1])
+        with cols[0]:
+            message = st.text_input("Message", key="chat_input", label_visibility="collapsed")
+        with cols[1]:
+            submit = st.form_submit_button("Send")
+        
+        if submit and message.strip():
+            add_chat_message(st.session_state.user, message.strip())
     
-    st.sidebar.markdown("### Game Chat")
-    
-    # Display messages
-    chat_container = st.sidebar.container()
+    # Display messages in the container (in reverse chronological order)
     with chat_container:
-        for msg in st.session_state.chat_messages:
+        for msg in reversed(st.session_state.chat_messages):
             timestamp = msg['timestamp'].strftime("%H:%M")
             is_current_user = msg['username'] == st.session_state.user
             
             st.markdown(
                 f"""
                 <div style='
-                    text-align: {'right' if is_current_user else 'left'};
+                    background-color: {'#E3F2FD' if is_current_user else '#F5F5F5'};
+                    padding: 10px;
+                    border-radius: 10px;
                     margin: 5px;
+                    text-align: {'right' if is_current_user else 'left'};
+                    max-width: 80%;
+                    float: {'right' if is_current_user else 'left'};
+                    clear: both;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
                 '>
-                    <small style='color: gray;'>{timestamp}</small><br/>
-                    <div style='
-                        display: inline-block;
-                        padding: 8px;
-                        border-radius: 15px;
-                        background-color: {'#E3F2FD' if is_current_user else '#F5F5F5'};
-                        max-width: 80%;
-                    '>
-                        <small><b>{msg['username']}</b></small><br/>
-                        {msg['message']}
-                    </div>
+                    <small style='color: #666; font-size: 0.8em;'>{msg['username']} • {timestamp}</small><br>
+                    {msg['message']}
                 </div>
+                <div style='clear: both;'></div>
                 """,
                 unsafe_allow_html=True
             )

@@ -36,13 +36,17 @@ POWER_UPS = {
 
 def init_power_ups():
     """Initialize power-ups state for both players"""
+    # Initialize power-ups dictionary if not exists
     if 'power_ups' not in st.session_state:
-        st.session_state.power_ups = {}
-    # Ensure both players have power-up lists
-    if 'X' not in st.session_state.power_ups:
-        st.session_state.power_ups['X'] = []
-    if 'O' not in st.session_state.power_ups:
-        st.session_state.power_ups['O'] = []
+        st.session_state.power_ups = {'X': [], 'O': []}
+    elif not isinstance(st.session_state.power_ups, dict):
+        st.session_state.power_ups = {'X': [], 'O': []}
+    
+    # Always ensure both players have lists
+    st.session_state.power_ups['X'] = st.session_state.power_ups.get('X', [])
+    st.session_state.power_ups['O'] = st.session_state.power_ups.get('O', [])
+    
+    # Other power-up related states
     if 'blocked_cells' not in st.session_state:
         st.session_state.blocked_cells = set()
     if 'extra_move_active' not in st.session_state:
