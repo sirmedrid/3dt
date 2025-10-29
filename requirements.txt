@@ -4,7 +4,6 @@ plotly
 streamlit-confetti
 streamlit-extras
 streamlit-js-eval
-streamlit-particles
 sqlalchemy
 bcrypt
 pyscopg2-binary
