@@ -35,11 +35,14 @@ POWER_UPS = {
 }
 
 def init_power_ups():
+    """Initialize power-ups state for both players"""
     if 'power_ups' not in st.session_state:
-        st.session_state.power_ups = {
-            'X': [],
-            'O': []
-        }
+        st.session_state.power_ups = {}
+    # Ensure both players have power-up lists
+    if 'X' not in st.session_state.power_ups:
+        st.session_state.power_ups['X'] = []
+    if 'O' not in st.session_state.power_ups:
+        st.session_state.power_ups['O'] = []
     if 'blocked_cells' not in st.session_state:
         st.session_state.blocked_cells = set()
     if 'extra_move_active' not in st.session_state:
@@ -92,11 +95,16 @@ def use_power_up(power_up_id, player):
 
 def display_power_ups():
     """Display available power-ups for the current player"""
-    if not st.session_state.power_ups[st.session_state.current_player]:
+    # Ensure power-ups are initialized
+    if 'power_ups' not in st.session_state:
+        init_power_ups()
+        
+    current_player = st.session_state.current_player
+    if not st.session_state.power_ups.get(current_player):
         return
     
     st.markdown("### Power-ups")
-    cols = st.columns(len(st.session_state.power_ups[st.session_state.current_player]))
+    cols = st.columns(len(st.session_state.power_ups[current_player]))
     
     for idx, power_up_id in enumerate(st.session_state.power_ups[st.session_state.current_player]):
         power_up = POWER_UPS[power_up_id]
