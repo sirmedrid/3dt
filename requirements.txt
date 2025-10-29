@@ -5,5 +5,5 @@ streamlit-extras
 streamlit-js-eval
 sqlalchemy
 bcrypt
-pyscopg2-binary
+pyscopg2
 python-dotenv
