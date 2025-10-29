@@ -3,7 +3,6 @@ import numpy as np
 import plotly.graph_objects as go
 import random
 from datetime import datetime
-from streamlit_confetti import st_confetti
 from streamlit_js_eval import streamlit_js_eval
 from components.achievements import init_achievements, check_achievement, display_achievements, ACHIEVEMENTS
 from components.stats import init_stats, update_stats, display_stats
@@ -29,7 +28,6 @@ if 'board' not in st.session_state:
     st.session_state.game_start_time = datetime.now()
     st.session_state.current_time = datetime.now()
     st.session_state.moves_history = []
-    st.session_state.show_particles = False
     st.session_state.power_ups = {}
     st.session_state.tournament_active = False
     st.session_state.chat_messages = []
@@ -151,41 +149,130 @@ def check_winner(board):
     return None
 
 def evaluate_board(board):
+    """Evaluate the board state with a more sophisticated scoring system"""
     winner = check_winner(board)
-    return 1 if winner == 'O' else -1 if winner == 'X' else 0
+    if winner == 'O':
+        return 1000
+    elif winner == 'X':
+        return -1000
+    
+    score = 0
+    # Check for potential winning moves
+    for i in range(4):
+        for j in range(4):
+            # Check rows
+            row = board[i, j, :]
+            score += evaluate_line(row)
+            # Check columns
+            col = board[i, :, j]
+            score += evaluate_line(col)
+            # Check depth
+            depth = board[:, i, j]
+            score += evaluate_line(depth)
+    
+    return score
+
+def evaluate_line(line):
+    """Evaluate a line of 4 cells"""
+    if '' not in line:
+        return 0
+    
+    x_count = np.count_nonzero(line == 'X')
+    o_count = np.count_nonzero(line == 'O')
+    
+    if o_count == 3 and x_count == 0:
+        return 100  # Near win for O
+    elif x_count == 3 and o_count == 0:
+        return -100  # Near win for X
+    elif o_count == 2 and x_count == 0:
+        return 10  # Good position for O
+    elif x_count == 2 and o_count == 0:
+        return -10  # Good position for X
+    elif o_count == 1 and x_count == 0:
+        return 1  # Slight advantage for O
+    elif x_count == 1 and o_count == 0:
+        return -1  # Slight advantage for X
+    
+    return 0
 
 def get_empty_cells(board):
     return [(z, y, x) for z in range(4) for y in range(4) for x in range(4) if board[z, y, x] == '']
 
+def minimax(board, depth, is_maximizing, alpha, beta):
+    """Minimax algorithm with alpha-beta pruning"""
+    winner = check_winner(board)
+    if winner == 'O':
+        return 1000 + depth
+    if winner == 'X':
+        return -1000 - depth
+    if depth == 0 or not np.any(board == ''):
+        return evaluate_board(board)
+    
+    empty_cells = get_empty_cells(board)
+    if is_maximizing:
+        max_eval = float('-inf')
+        for z, y, x in empty_cells:
+            board[z, y, x] = 'O'
+            eval = minimax(board, depth - 1, False, alpha, beta)
+            board[z, y, x] = ''
+            max_eval = max(max_eval, eval)
+            alpha = max(alpha, eval)
+            if beta <= alpha:
+                break
+        return max_eval
+    else:
+        min_eval = float('inf')
+        for z, y, x in empty_cells:
+            board[z, y, x] = 'X'
+            eval = minimax(board, depth - 1, True, alpha, beta)
+            board[z, y, x] = ''
+            min_eval = min(min_eval, eval)
+            beta = min(beta, eval)
+            if beta <= alpha:
+                break
+        return min_eval
+
 def make_bot_move():
+    """Make a move for the bot based on difficulty level"""
     empty_cells = get_empty_cells(st.session_state.board)
     if not empty_cells:
         return
+    
     difficulty = st.session_state.difficulty
     if difficulty == 'easy':
-        z, y, x = random.choice(empty_cells)
-    elif difficulty == 'medium':
-        if random.random() < 0.7:
-            best_score, best_move = float('-inf'), empty_cells[0]
-            for z, y, x in empty_cells:
-                b = st.session_state.board.copy()
-                b[z, y, x] = 'O'
-                s = evaluate_board(b)
-                if s > best_score:
-                    best_score, best_move = s, (z, y, x)
-            z, y, x = best_move
+        # Random move with 20% chance of making a good move
+        if random.random() < 0.2:
+            z, y, x = make_smart_move(empty_cells, depth=1)
         else:
             z, y, x = random.choice(empty_cells)
-    else:
-        best_score, best_move = float('-inf'), empty_cells[0]
-        for z, y, x in empty_cells:
-            b = st.session_state.board.copy()
-            b[z, y, x] = 'O'
-            s = evaluate_board(b)
-            if s > best_score:
-                best_score, best_move = s, (z, y, x)
-        z, y, x = best_move
+    
+    elif difficulty == 'medium':
+        # Smart move with depth 2, but 30% chance of random move
+        if random.random() < 0.7:
+            z, y, x = make_smart_move(empty_cells, depth=2)
+        else:
+            z, y, x = random.choice(empty_cells)
+    
+    else:  # hard
+        # Full minimax with depth 3
+        z, y, x = make_smart_move(empty_cells, depth=3)
+    
     make_move(z, y, x)
+
+def make_smart_move(empty_cells, depth):
+    """Make a move using minimax algorithm"""
+    best_score = float('-inf')
+    best_move = empty_cells[0]
+    
+    for z, y, x in empty_cells:
+        board_copy = st.session_state.board.copy()
+        board_copy[z, y, x] = 'O'
+        score = minimax(board_copy, depth, False, float('-inf'), float('inf'))
+        if score > best_score:
+            best_score = score
+            best_move = (z, y, x)
+            
+    return best_move
 
 def make_move(z, y, x):
     if st.session_state.game_over:
@@ -204,14 +291,18 @@ def make_move(z, y, x):
         st.session_state.winner = winner
         st.session_state.game_over = True
         game_end = True
-        st.session_state.show_particles = True
         duration = (datetime.now() - st.session_state.game_start_time).total_seconds()
         if winner == 'X':
-            if check_achievement('first_win'): st_confetti()
-            if duration < 30 and check_achievement('speed_demon'): st_confetti()
-            if st.session_state.game_mode == 'bot' and st.session_state.difficulty == 'hard' and check_achievement('bot_master'): st_confetti()
-            if is_diagonal_win() and check_achievement('diagonal_win'): st_confetti()
-            if st.session_state.stats['current_streak'] == 4 and check_achievement('undefeated'): st_confetti()
+            if check_achievement('first_win'):
+                st.balloons()
+            if duration < 30:
+                check_achievement('speed_demon')
+            if st.session_state.game_mode == 'bot' and st.session_state.difficulty == 'hard':
+                check_achievement('bot_master')
+            if is_diagonal_win():
+                check_achievement('diagonal_win')
+            if st.session_state.stats['current_streak'] == 4:
+                check_achievement('undefeated')
     elif not np.any(st.session_state.board == ''):
         st.session_state.game_over = True
         game_end = True
@@ -227,15 +318,33 @@ def make_move(z, y, x):
     update_game_display()
 
 def update_game_display():
+    """Update the game display with enhanced feedback"""
     with st.session_state.status_container:
         st.empty()
         if st.session_state.game_over:
             if st.session_state.winner:
-                st.success(f"Player {st.session_state.winner} wins!")
+                win_message = (
+                    "🏆 Congratulations! "
+                    f"Player {st.session_state.winner} wins in {st.session_state.move_count} moves! "
+                    f"Game duration: {(datetime.now() - st.session_state.game_start_time).seconds} seconds"
+                )
+                st.success(win_message)
+                # Show game statistics
+                st.info(f"Moves played: {len(st.session_state.moves_history)}")
+                if st.session_state.winner == 'X' and st.session_state.game_mode == 'bot':
+                    st.success("Impressive! You've beaten the bot! 🎮")
             else:
-                st.info("It's a draw!")
+                st.info("🤝 It's a draw! Well played by both sides!")
         else:
-            st.info(f"Current Player: **{st.session_state.current_player}**")
+            player_turn = "Your turn" if st.session_state.current_player == 'X' else "Bot's turn" \
+                if st.session_state.game_mode == 'bot' else f"Player {st.session_state.current_player}'s turn"
+            st.info(f"📍 {player_turn} (Move {st.session_state.move_count + 1})")
+            
+            # Show last move if available
+            if st.session_state.moves_history:
+                last_z, last_y, last_x, last_player = st.session_state.moves_history[-1]
+                st.text(f"Last move: Player {last_player} at Layer {last_z+1}, Row {last_y+1}, Column {last_x+1}")
+    
     with st.session_state.board_container:
         st.empty()
         refresh_board()
