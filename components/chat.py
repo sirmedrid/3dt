@@ -75,20 +75,7 @@ def display_chat():
         st.sidebar.text_input("Message", value="", key="chat_input_clear")
         st.rerun()
 
-def send_game_event(event_type, data=None):
-    """Send a game event to the chat"""
-    messages = {
-        'move': "{username} made a move at position {position}",
-        'win': "🎉 {username} won the game!",
-        'draw': "🤝 The game ended in a draw!",
-        'power_up': "💫 {username} used {power_up}!",
-        'join': "👋 {username} joined the game",
-        'leave': "👋 {username} left the game"
-    }
-    
-    if event_type in messages and st.session_state.user:
-        message = messages[event_type].format(
-            username=st.session_state.user,
-            **data if data else {}
-        )
-        add_chat_message('System', message)
+def send_game_event(event_message):
+    """Send a game event to the chat as a system message"""
+    if st.session_state.user:  # Only send events if someone is logged in
+        add_chat_message("🎮 Game", event_message)

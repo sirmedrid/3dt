@@ -409,10 +409,12 @@ except Exception:
     # issues in UI rendering so the main app stays up.
     pass
 
-# Social & Tournament
-social_col1, social_col2 = st.columns(2)
-with social_col1: handle_tournament_ui()
-with social_col2: display_chat()
+# Social Features
+col1, col2 = st.columns([2, 3])
+with col1:
+    handle_tournament_ui()
+with col2:
+    display_chat()
 
 # Power-ups
 if st.session_state.current_player == 'X':
