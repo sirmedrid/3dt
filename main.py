@@ -475,12 +475,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Developer tools: seed database (only visible if sidebar used)
-with st.sidebar.expander("Dev Tools"):
-    if st.button("Seed Database (dev)"):
-        try:
-            DatabaseManager.seed_database()
-            st.success("Database seeded with sample users and games.")
-            st.experimental_rerun()
-        except Exception as e:
-            st.error(f"Failed to seed database: {e}")
+# Developer tools (sidebar duplicate) - shown when forced or user present
+if FORCE_DEVTOOLS or st.session_state.get('user'):
+    with st.sidebar.expander("Dev Tools"):
+        if st.button("Seed Database (dev)"):
+            try:
+                DatabaseManager.seed_database()
+                st.success("Database seeded with sample users and games.")
+                st.experimental_rerun()
+            except Exception as e:
+                st.error(f"Failed to seed database: {e}")
