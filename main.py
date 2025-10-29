@@ -3,17 +3,6 @@ import numpy as np
 import plotly.graph_objects as go
 import random
 from datetime import datetime
-from streamlit_particles import particles
-from streamlit_confetti import st_confetti
-from streamlit_js_eval import streamlit_js_eval
-from components.achievements import init_achievements, check_achievement, display_achievements, ACHIEVEMENTS
-from components.stats import init_stats, update_stats, display_stats
-from components.themes import init_theme, get_current_theme, apply_theme, display_theme_selector
-from components.user_system import init_user_system,import streamlit as st
-import numpy as np
-import plotly.graph_objects as go
-import random
-from datetime import datetime
 from streamlit_confetti import st_confetti
 from streamlit_js_eval import streamlit_js_eval
 from components.achievements import init_achievements, check_achievement, display_achievements, ACHIEVEMENTS
