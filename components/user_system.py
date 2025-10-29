@@ -8,12 +8,29 @@ def init_user_system():
     
     if 'show_signup' not in st.session_state:
         st.session_state.show_signup = False
+    
+    if 'is_admin' not in st.session_state:
+        st.session_state.is_admin = False
 
 def render_auth_ui():
     if st.session_state.user:
         st.sidebar.markdown(f"## Welcome, {st.session_state.user}!")
+        
+        # Add admin section with seed button
+        if st.session_state.is_admin or st.session_state.user == "admin":
+            st.session_state.is_admin = True
+            st.sidebar.markdown("---")
+            st.sidebar.markdown("## Admin Section")
+            if st.sidebar.button("🌱 Seed Database"):
+                try:
+                    users_created = DatabaseManager.seed_database()
+                    st.sidebar.success(f"Database seeded successfully! Created {users_created} sample users.")
+                except Exception as e:
+                    st.sidebar.error(f"Error seeding database: {str(e)}")
+        
         if st.sidebar.button("Logout"):
             st.session_state.user = None
+            st.session_state.is_admin = False
             st.rerun()
         return True
     

@@ -1,9 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import bcrypt
-from .models import User, Game, UserAchievement, GlobalStats, get_db_session
+import random
+from .models import User, Game, UserAchievement, GlobalStats, get_db_session, Base
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, create_engine
 
 class DatabaseManager:
     @staticmethod
@@ -182,3 +183,61 @@ class DatabaseManager:
                 'fastest_win': stats.fastest_win,
                 'longest_win_streak': stats.longest_win_streak
             }
+
+    @staticmethod
+    def seed_database():
+        """Seed the database with sample users and games for development/testing.
+
+        This function is idempotent for users (it won't duplicate users with the
+        same username) but will add sample games each time it's called.
+        """
+        sample_users = ["alice", "bob", "carol", "dave"]
+
+        with get_db_session() as session:
+            created_users = []
+            # Create users if they don't exist
+            for uname in sample_users:
+                user = session.query(User).filter(User.username == uname).first()
+                if not user:
+                    password_hash = bcrypt.hashpw("password".encode(), bcrypt.gensalt()).decode()
+                    user = User(username=uname, password_hash=password_hash)
+                    session.add(user)
+                    session.flush()  # obtain id
+                created_users.append(user)
+
+            # Add a few sample games per user
+            for user in created_users:
+                for _ in range(5):
+                    winner = random.choice(['X', 'O', None])
+                    moves = random.randint(8, 40)
+                    duration = round(random.uniform(15.0, 600.0), 2)
+                    game = Game(
+                        user_id=user.id,
+                        winner=winner,
+                        moves_count=moves,
+                        duration=duration,
+                        game_mode=random.choice(['human', 'bot']),
+                        difficulty=random.choice(['easy', 'medium', 'hard']),
+                        moves_history=json.dumps([])
+                    )
+                    session.add(game)
+
+            # Ensure GlobalStats record exists
+            stats = session.query(GlobalStats).first()
+            if not stats:
+                stats = GlobalStats()
+                session.add(stats)
+
+            session.commit()
+
+            # Recompute aggregate stats from games
+            stats.total_games = session.query(func.count(Game.id)).scalar() or 0
+            stats.total_moves = session.query(func.coalesce(func.sum(Game.moves_count), 0)).scalar() or 0
+            stats.x_wins = session.query(func.count(Game.id)).filter(Game.winner == 'X').scalar() or 0
+            stats.o_wins = session.query(func.count(Game.id)).filter(Game.winner == 'O').scalar() or 0
+            stats.draws = session.query(func.count(Game.id)).filter(Game.winner == None).scalar() or 0
+            stats.fastest_win = session.query(func.min(Game.duration)).scalar()
+
+            session.commit()
+
+        return True

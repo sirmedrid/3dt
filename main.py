@@ -39,6 +39,7 @@ init_theme()
 init_tournament_system()
 init_power_ups()
 init_chat()
+init_user_system()
 
 def create_3d_board():
     """Create a 3D visualization of the game board using Plotly"""
@@ -382,6 +383,16 @@ for key in ['game_container', 'status_container', 'board_container']:
 st.title("3D Tic Tac Toe")
 st.markdown("**4x4x4 Cube** - Get 4 in a row to win!")
 
+# Render auth UI (sidebar) and user stats
+try:
+    render_auth_ui()
+    display_user_stats()
+except Exception:
+    # Render/auth functions expect session_state keys to be initialized.
+    # init_user_system() above should prevent errors, but swallow any unexpected
+    # issues in UI rendering so the main app stays up.
+    pass
+
 # Social & Tournament
 social_col1, social_col2 = st.columns(2)
 with social_col1: handle_tournament_ui()
@@ -447,3 +458,13 @@ st.markdown("""
 .streamlit-expanderHeader {font-size: 16px; color: #333;}
 </style>
 """, unsafe_allow_html=True)
+
+# Developer tools: seed database (only visible if sidebar used)
+with st.sidebar.expander("Dev Tools"):
+    if st.button("Seed Database (dev)"):
+        try:
+            DatabaseManager.seed_database()
+            st.success("Database seeded with sample users and games.")
+            st.experimental_rerun()
+        except Exception as e:
+            st.error(f"Failed to seed database: {e}")
