@@ -2,7 +2,7 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
-import os
+import streamlit as st
 
 # Create SQLAlchemy base class
 Base = declarative_base()
@@ -54,16 +54,20 @@ class GlobalStats(Base):
 
 # Database connection and session management
 def init_db():
-    db_url = os.getenv('DB_URL')
-    if not db_url:
-        raise ValueError("DB_URL environment variable not set")
+    try:
+        db_url = st.secrets["DB_URL"]
+    except KeyError:
+        raise ValueError("DB_URL not found in Streamlit secrets. Please add it in your Streamlit settings.")
     
     engine = create_engine(db_url)
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine)
 
 # Create session factory
-SessionFactory = init_db()
+SessionFactory = None
 
 def get_db_session():
+    global SessionFactory
+    if SessionFactory is None:
+        SessionFactory = init_db()
     return SessionFactory()
