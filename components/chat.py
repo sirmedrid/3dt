@@ -68,12 +68,7 @@ def display_chat():
                 unsafe_allow_html=True
             )
     
-    # Message input
-    message = st.sidebar.text_input("Message", key="chat_input")
-    if message:
-        add_chat_message(st.session_state.user, message)
-        st.sidebar.text_input("Message", value="", key="chat_input_clear")
-        st.rerun()
+    # (No sidebar duplicate input - message input is handled by the form above)
 
 def send_game_event(event_message):
     """Send a game event to the chat as a system message"""

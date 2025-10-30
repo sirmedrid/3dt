@@ -13,9 +13,22 @@ def init_user_system():
         st.session_state.is_admin = False
 
 def render_auth_ui():
-    # Try to restore session from cookie
-    if 'user' not in st.session_state and 'stored_user' in st.session_state:
-        st.session_state.user = st.session_state.stored_user
+    # Try to restore session from stored_user or from query params
+    if 'user' not in st.session_state:
+        # First try stored_user from session_state
+        if 'stored_user' in st.session_state and st.session_state.stored_user:
+            st.session_state.user = st.session_state.stored_user
+        else:
+            # Fallback: check URL query params (used to persist 'remember me')
+            try:
+                params = st.experimental_get_query_params()
+                if 'user' in params and params['user']:
+                    st.session_state.user = params['user'][0]
+                    # also mirror into stored_user for this session
+                    st.session_state.stored_user = st.session_state.user
+            except Exception:
+                # experimental_get_query_params may not be available in some envs
+                pass
     
     if st.session_state.user:
         st.sidebar.markdown(f"## Welcome, {st.session_state.user}!")
@@ -77,7 +90,13 @@ def render_auth_ui():
                 if DatabaseManager.verify_user(username, password):
                     st.session_state.user = username
                     if remember_me:
+                        # Persist in-session and in the URL so refresh keeps the user
                         st.session_state.stored_user = username
+                        try:
+                            st.experimental_set_query_params(user=username)
+                        except Exception:
+                            # Not critical; just keep stored_user in session
+                            pass
                     st.rerun()
                 else:
                     st.error("Invalid username or password!")
