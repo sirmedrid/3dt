@@ -493,7 +493,7 @@ with st.expander("ℹ️ How to Play"):
     """)
 
 # Dev Tools (hidden by default, accessible only with proper authentication)
-if st.session_state.get('user', {}).get('is_admin', False):
+if st.session_state.get('is_admin', False):
     with st.sidebar.expander("🔧 Admin Tools"):
         if st.button("Seed Database"):
             try:
