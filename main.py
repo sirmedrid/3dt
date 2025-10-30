@@ -359,7 +359,8 @@ def update_game_display():
         refresh_board()
 
 def refresh_board():
-    st.plotly_chart(create_3d_board(), use_container_width=True)
+    # Use a unique key for the Plotly chart
+    st.plotly_chart(create_3d_board(), use_container_width=True, key="game_board_3d")
     st.markdown("### Game Board")
     layers = st.columns(4)
     for z in range(4):
