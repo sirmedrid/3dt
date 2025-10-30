@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import json
 import bcrypt
 import random
+import streamlit as st
 from .models import User, Game, UserAchievement, GlobalStats, get_db_session, Base
 from sqlalchemy.orm import Session
 from sqlalchemy import func, create_engine
@@ -25,7 +26,22 @@ class DatabaseManager:
             user = session.query(User).filter(User.username == username).first()
             if not user:
                 return False
-            return bcrypt.checkpw(password.encode(), user.password_hash.encode())
+            if bcrypt.checkpw(password.encode(), user.password_hash.encode()):
+                # Update session state with admin status
+                st.session_state.is_admin = user.is_admin
+                return True
+            return False
+
+    @staticmethod
+    def make_admin(username: str) -> bool:
+        """Make a user an admin"""
+        with get_db_session() as session:
+            user = session.query(User).filter(User.username == username).first()
+            if not user:
+                return False
+            user.is_admin = True
+            session.commit()
+            return True
     
     @staticmethod
     def save_game(

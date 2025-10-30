@@ -38,12 +38,24 @@ def render_auth_ui():
             st.session_state.is_admin = True
             st.sidebar.markdown("---")
             st.sidebar.markdown("## Admin Section")
+            
+            # Admin controls
             if st.sidebar.button("🌱 Seed Database"):
                 try:
                     users_created = DatabaseManager.seed_database()
                     st.sidebar.success(f"Database seeded successfully! Created {users_created} sample users.")
                 except Exception as e:
                     st.sidebar.error(f"Error seeding database: {str(e)}")
+            
+            # Make user admin
+            with st.sidebar.form("make_admin_form"):
+                st.markdown("### Make User Admin")
+                username_to_admin = st.text_input("Username")
+                if st.form_submit_button("Make Admin"):
+                    if DatabaseManager.make_admin(username_to_admin):
+                        st.success(f"Made {username_to_admin} an admin!")
+                    else:
+                        st.error(f"User {username_to_admin} not found!")
         
         if st.sidebar.button("Logout"):
             st.session_state.user = None

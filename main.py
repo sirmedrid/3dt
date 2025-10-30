@@ -18,6 +18,11 @@ from database.manager import DatabaseManager
 st.set_page_config(page_title="3D Tic Tac Toe", page_icon="🎮", layout="wide")
 
 # Initialize all session state
+# Initialize all session state
+# Ensure power_ups is always a dictionary
+if 'power_ups' not in st.session_state or not isinstance(st.session_state.power_ups, dict):
+    st.session_state.power_ups = {'X': [], 'O': []}
+
 if 'board' not in st.session_state:
     st.session_state.board = np.full((4, 4, 4), '', dtype=object)
     st.session_state.current_player = 'X'
@@ -30,7 +35,6 @@ if 'board' not in st.session_state:
     st.session_state.game_start_time = datetime.now()
     st.session_state.current_time = datetime.now()
     st.session_state.moves_history = []
-    st.session_state.power_ups = {'X': [], 'O': []}
     st.session_state.tournament_active = False
     st.session_state.chat_messages = []
     st.session_state.show_devtools = False
