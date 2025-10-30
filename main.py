@@ -305,7 +305,7 @@ def make_move(z, y, x):
     st.session_state.move_count += 1
     
     if st.session_state.power_ups:
-        handle_power_up_effects(z, y, x)
+        handle_power_up_effects()
     
     st.session_state.board[z, y, x] = st.session_state.current_player
     send_game_event(f"Player {st.session_state.current_player} → L{z+1}R{y+1}C{x+1}")
@@ -370,7 +370,13 @@ try:
     render_auth_ui()
     display_user_stats()
 except Exception as e:
-    pass
+    st.error("Authentication system error. Please try again later.")
+    st.stop()
+
+# Check if user is logged in
+if not st.session_state.get('user'):
+    st.warning("👋 Please log in to play the game!")
+    st.stop()
 
 # Main game area
 col_left, col_right = st.columns([2, 1])
@@ -395,7 +401,7 @@ with col_left:
             st.caption(f"Last: Player {last_player} at Layer {last_z+1}, Row {last_y+1}, Column {last_x+1}")
     
     # 3D Board
-    st.plotly_chart(create_3d_board(), use_container_width=True, key="board_3d")
+    st.plotly_chart(create_3d_board(), width='stretch', key="board_3d")
     
     # 2D Layer Controls
     st.markdown("### 📊 Layer Controls")
