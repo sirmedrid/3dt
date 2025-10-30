@@ -30,7 +30,7 @@ if 'board' not in st.session_state:
     st.session_state.game_start_time = datetime.now()
     st.session_state.current_time = datetime.now()
     st.session_state.moves_history = []
-    st.session_state.power_ups = {}
+    st.session_state.power_ups = {'X': [], 'O': []}
     st.session_state.tournament_active = False
     st.session_state.chat_messages = []
     st.session_state.show_devtools = False
@@ -304,7 +304,9 @@ def make_move(z, y, x):
     st.session_state.moves_history.append((z, y, x, st.session_state.current_player))
     st.session_state.move_count += 1
     
-    if st.session_state.power_ups:
+    # Check if current player has any active power-ups
+    current_player = st.session_state.current_player
+    if st.session_state.power_ups.get(current_player, []):
         handle_power_up_effects()
     
     st.session_state.board[z, y, x] = st.session_state.current_player
@@ -353,6 +355,8 @@ def reset_game():
     st.session_state.move_count = 0
     st.session_state.game_start_time = datetime.now()
     st.session_state.moves_history = []
+    st.session_state.power_ups = {'X': [], 'O': []}  # Reset power-ups
+    init_power_ups()  # Re-initialize power-ups system
     st.rerun()
 
 # ============= UI =============
