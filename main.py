@@ -46,7 +46,8 @@ init_user_system()
 
 def create_3d_board():
     """Create a 3D visualization of the game board using Plotly"""
-    x, y, z, text, colors, opacity = [], [], [], [], [], []
+    x, y, z, text = [], [], [], []
+    marker_colors = []
     
     for i in range(4):
         for j in range(4):
@@ -57,20 +58,24 @@ def create_3d_board():
                 cell_value = st.session_state.board[i, j, k]
                 text.append(cell_value if cell_value != '' else '')
                 if cell_value == 'X':
-                    colors.append('#000000')
-                    opacity.append(1.0)
+                    marker_colors.append('rgba(0, 0, 0, 1.0)')  # Black, fully opaque
                 elif cell_value == 'O':
-                    colors.append('#FFFFFF')
-                    opacity.append(1.0)
+                    marker_colors.append('rgba(255, 255, 255, 1.0)')  # White, fully opaque
                 else:
-                    colors.append('#E0E0E0')
-                    opacity.append(0.3)
+                    marker_colors.append('rgba(224, 224, 224, 0.3)')  # Light gray, semi-transparent
 
     fig = go.Figure(data=[
         go.Scatter3d(
             x=x, y=y, z=z, mode='markers',
-            marker=dict(size=40, color=colors, opacity=opacity, line=dict(width=1, color='#808080')),
-            text=text, textposition="middle center", textfont=dict(size=20), hoverinfo='none'
+            marker=dict(
+                size=40,
+                color=marker_colors,
+                line=dict(width=1, color='#808080')
+            ),
+            text=text,
+            textposition="middle center",
+            textfont=dict(size=20),
+            hoverinfo='none'
         )
     ])
 

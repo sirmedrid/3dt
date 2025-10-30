@@ -186,58 +186,91 @@ class DatabaseManager:
 
     @staticmethod
     def seed_database():
-        """Seed the database with sample users and games for development/testing.
-
-        This function is idempotent for users (it won't duplicate users with the
-        same username) but will add sample games each time it's called.
-        """
-        sample_users = ["alice", "bob", "carol", "dave"]
+        """Seed the database with sample users and games for development/testing."""
+        sample_users = {
+            "alice": {
+                "games": 20,  # More games for Alice
+                "achievements": ["first_win", "speed_demon", "bot_master", "diagonal_win", "undefeated"],
+                "win_ratio": 0.7  # 70% win rate
+            },
+            "bob": {"games": 5, "achievements": ["first_win"], "win_ratio": 0.4},
+            "carol": {"games": 5, "achievements": [], "win_ratio": 0.5},
+            "dave": {"games": 5, "achievements": [], "win_ratio": 0.3}
+        }
 
         with get_db_session() as session:
             created_users = []
-            # Create users if they don't exist
-            for uname in sample_users:
+            
+            # Create or update users
+            for uname, user_data in sample_users.items():
                 user = session.query(User).filter(User.username == uname).first()
                 if not user:
                     password_hash = bcrypt.hashpw("password".encode(), bcrypt.gensalt()).decode()
                     user = User(username=uname, password_hash=password_hash)
                     session.add(user)
-                    session.flush()  # obtain id
-                created_users.append(user)
-
-            # Add a few sample games per user
-            for user in created_users:
-                for _ in range(5):
-                    winner = random.choice(['X', 'O', None])
+                    session.flush()
+                
+                # Clear existing games and achievements for clean slate
+                session.query(Game).filter(Game.user_id == user.id).delete()
+                session.query(UserAchievement).filter(UserAchievement.user_id == user.id).delete()
+                
+                # Add achievements
+                for achievement_id in user_data["achievements"]:
+                    achievement = UserAchievement(
+                        user_id=user.id,
+                        achievement_id=achievement_id,
+                        unlocked_at=datetime.utcnow() - timedelta(days=random.randint(0, 30))
+                    )
+                    session.add(achievement)
+                
+                # Add games with specified win ratio
+                num_games = user_data["games"]
+                wins = int(num_games * user_data["win_ratio"])
+                losses = int(num_games * (1 - user_data["win_ratio"]))
+                draws = num_games - wins - losses
+                
+                # Generate games with proper distribution
+                for outcome in (['X'] * wins + ['O'] * losses + [None] * draws):
                     moves = random.randint(8, 40)
                     duration = round(random.uniform(15.0, 600.0), 2)
+                    # Ensure some fast wins for achievements
+                    if uname == "alice" and outcome == 'X' and random.random() < 0.2:
+                        duration = round(random.uniform(10.0, 25.0), 2)
+                    
                     game = Game(
                         user_id=user.id,
-                        winner=winner,
+                        winner=outcome,
                         moves_count=moves,
                         duration=duration,
                         game_mode=random.choice(['human', 'bot']),
                         difficulty=random.choice(['easy', 'medium', 'hard']),
-                        moves_history=json.dumps([])
+                        moves_history=json.dumps([]),
+                        created_at=datetime.utcnow() - timedelta(days=random.randint(0, 30))
                     )
                     session.add(game)
-
-            # Ensure GlobalStats record exists
+                
+                created_users.append(user)
+            
+            # Ensure GlobalStats record exists and update it
             stats = session.query(GlobalStats).first()
             if not stats:
                 stats = GlobalStats()
                 session.add(stats)
-
+            
             session.commit()
-
+            
             # Recompute aggregate stats from games
             stats.total_games = session.query(func.count(Game.id)).scalar() or 0
             stats.total_moves = session.query(func.coalesce(func.sum(Game.moves_count), 0)).scalar() or 0
             stats.x_wins = session.query(func.count(Game.id)).filter(Game.winner == 'X').scalar() or 0
             stats.o_wins = session.query(func.count(Game.id)).filter(Game.winner == 'O').scalar() or 0
             stats.draws = session.query(func.count(Game.id)).filter(Game.winner == None).scalar() or 0
-            stats.fastest_win = session.query(func.min(Game.duration)).scalar()
-
+            stats.fastest_win = session.query(func.min(Game.duration)).filter(Game.winner.isnot(None)).scalar()
+            
+            # Update streak information
+            consecutive_wins = 4  # For undefeated achievement
+            stats.longest_win_streak = consecutive_wins
+            
             session.commit()
-
-        return True
+            
+            return True
