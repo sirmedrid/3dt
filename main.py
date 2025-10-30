@@ -105,10 +105,17 @@ def create_3d_board():
                     hoverinfo='skip'
                 ))
 
+    # Save the last camera state if available
+    if 'relayoutData' in st._config._config_options['plotly_config']:
+        camera_data = st._config._config_options['plotly_config']['relayoutData']
+        if 'scene.camera' in camera_data:
+            st.session_state.last_camera = camera_data['scene.camera']
+    
+    # Use the saved camera or default
     camera = st.session_state.last_camera or dict(
         up=dict(x=0, y=0, z=1),
         center=dict(x=1.5, y=1.5, z=1.5),
-        eye=dict(x=2.8, y=2.8, z=2.8)
+        eye=dict(x=3.5, y=3.5, z=3.5)  # Moved camera further back for better view
     )
 
     fig.update_layout(
@@ -350,6 +357,9 @@ def make_move(z, y, x):
     
     if not st.session_state.game_over and st.session_state.game_mode == 'bot' and st.session_state.current_player == 'O':
         make_bot_move()
+    
+    # Force refresh after any move
+    st.rerun()
 
 def reset_game():
     st.session_state.board = np.full((4, 4, 4), '', dtype=object)
@@ -409,14 +419,81 @@ with col_left:
             st.caption(f"Last: Player {last_player} at Layer {last_z+1}, Row {last_y+1}, Column {last_x+1}")
     
     # 3D Board
-    st.plotly_chart(create_3d_board(), width='stretch', key="board_3d")
+    # Use move count in key to force refresh
+    st.plotly_chart(create_3d_board(), width='stretch', key=f"board_3d_{st.session_state.move_count}")
     
     # 2D Layer Controls
     st.markdown("### 📊 Layer Controls")
+    
+    # Custom CSS for grid buttons
+    st.markdown("""
+        <style>
+            /* Grid container styling */
+            .layer-grid {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 1rem;
+                margin-bottom: 2rem;
+            }
+            
+            /* Layer title */
+            .layer-title {
+                text-align: center;
+                font-size: 1.2rem;
+                font-weight: bold;
+                margin-bottom: 0.5rem;
+                padding: 0.5rem;
+                background: #f0f2f6;
+                border-radius: 5px;
+            }
+            
+            /* Grid cell styling */
+            .grid-row {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 0.5rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            /* Button styling */
+            .stButton > button {
+                width: 100% !important;
+                height: 0 !important;
+                padding-bottom: 100% !important;
+                position: relative !important;
+                border: 2px solid #ddd !important;
+                background: white !important;
+                border-radius: 8px !important;
+                font-size: 24px !important;
+                font-weight: bold !important;
+                margin: 0 !important;
+            }
+            
+            .stButton > button:hover:not(:disabled) {
+                border-color: #888 !important;
+                transform: translateY(-2px) !important;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+            }
+            
+            .stButton > button:disabled {
+                background: #f5f5f5 !important;
+                cursor: not-allowed !important;
+            }
+            
+            /* Layer separator */
+            .layer-separator {
+                height: 2px;
+                background: #ddd;
+                margin: 1rem 0;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    # Create grid layout
     layers = st.columns(4)
     for z in range(4):
         with layers[z]:
-            st.markdown(f"**L{z+1}**")
+            st.markdown(f'<div class="layer-title">Layer {z+1}</div>', unsafe_allow_html=True)
             for y in range(4):
                 cols = st.columns(4)
                 for x in range(4):
@@ -426,8 +503,23 @@ with col_left:
                         disabled = st.session_state.game_over or cell_value != '' or \
                                  (st.session_state.game_mode == 'bot' and st.session_state.current_player == 'O')
                         
-                        if st.button(label, key=f"b_{z}_{y}_{x}", disabled=disabled, use_container_width=True):
+                        # Custom button styling based on state
+                        button_style = """
+                            background-color: var(--primary-color) !important;
+                            color: white !important;
+                        """ if cell_value else ""
+                        
+                        if st.button(
+                            label,
+                            key=f"b_{z}_{y}_{x}",
+                            disabled=disabled,
+                            use_container_width=True
+                        ):
                             make_move(z, y, x)
+            
+            # Add separator between layers
+            if z < 3:
+                st.markdown('<div class="layer-separator"></div>', unsafe_allow_html=True)
 
 with col_right:
     # Game Controls
@@ -455,9 +547,27 @@ with col_right:
     
     st.divider()
     
-    # Power-ups
-    if st.session_state.current_player == 'X':
-        display_power_ups()
+    # Power-ups for both players
+    st.markdown("### 🎮 Power-ups")
+    
+    # Display power-ups in two columns
+    powerup_cols = st.columns(2)
+    
+    with powerup_cols[0]:
+        st.markdown(f"**Player X**")
+        if st.session_state.current_player == 'X':
+            display_power_ups('X')
+        else:
+            # Show but disable power-ups for inactive player
+            display_power_ups('X', disabled=True)
+    
+    with powerup_cols[1]:
+        st.markdown(f"**Player O**")
+        if st.session_state.current_player == 'O':
+            display_power_ups('O')
+        else:
+            # Show but disable power-ups for inactive player
+            display_power_ups('O', disabled=True)
     
     # Quick Stats
     st.markdown("### 📈 Quick Stats")
@@ -470,11 +580,14 @@ with col_right:
 
 # Social Features
 st.divider()
-social_col1, social_col2 = st.columns([1, 1])
+social_col1, social_col2, social_col3 = st.columns([1, 1, 1])
 with social_col1:
     handle_tournament_ui()
 with social_col2:
     display_chat()
+with social_col3:
+    st.markdown("### 🏆 Achievements")
+    display_achievements()
 
 # Instructions
 with st.expander("ℹ️ How to Play"):

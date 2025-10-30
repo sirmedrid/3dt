@@ -97,29 +97,34 @@ def use_power_up(power_up_id, player):
     
     return True
 
-def display_power_ups():
-    """Display available power-ups for the current player"""
+def display_power_ups(player=None, disabled=False):
+    """Display available power-ups for the specified player"""
     # Ensure power-ups are initialized
     if 'power_ups' not in st.session_state:
         init_power_ups()
-        
-    current_player = st.session_state.current_player
-    if not st.session_state.power_ups.get(current_player):
+    
+    # If no player specified, use current player
+    if player is None:
+        player = st.session_state.current_player
+    
+    if not st.session_state.power_ups.get(player):
+        st.caption("No power-ups available")
         return
     
-    st.markdown("### Power-ups")
-    cols = st.columns(len(st.session_state.power_ups[current_player]))
+    cols = st.columns(len(st.session_state.power_ups[player]))
     
-    for idx, power_up_id in enumerate(st.session_state.power_ups[st.session_state.current_player]):
+    for idx, power_up_id in enumerate(st.session_state.power_ups[player]):
         power_up = POWER_UPS[power_up_id]
         with cols[idx]:
             if st.button(
                 f"{power_up['icon']} {power_up['name']}",
                 help=power_up['description'],
-                key=f"power_up_{idx}"
+                key=f"power_up_{player}_{idx}",
+                disabled=disabled
             ):
-                use_power_up(power_up_id, st.session_state.current_player)
-                st.rerun()
+                if not disabled:
+                    use_power_up(power_up_id, player)
+                    st.rerun()
 
 def handle_power_up_effects():
     """Handle the effects of active power-ups"""
