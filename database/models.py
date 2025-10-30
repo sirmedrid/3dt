@@ -54,12 +54,35 @@ class GlobalStats(Base):
 
 # Database connection and session management
 def init_db():
+    # Try to use DB_URL from Streamlit secrets. If connection fails (for example
+    # due to SSL/network issues), fall back to a local SQLite file so development
+    # and seeding can continue without a remote DB.
+    db_url = None
     try:
-        db_url = st.secrets["DB_URL"]
-    except KeyError:
-        raise ValueError("DB_URL not found in Streamlit secrets. Please add it in your Streamlit settings.")
-    
-    engine = create_engine(db_url)
+        db_url = st.secrets.get("DB_URL")
+    except Exception:
+        db_url = None
+
+    if db_url:
+        try:
+            # Use pool_pre_ping to help recover stale connections
+            engine = create_engine(db_url, pool_pre_ping=True)
+            # Try a quick connect to verify availability
+            conn = engine.connect()
+            conn.close()
+            Base.metadata.create_all(engine)
+            return sessionmaker(bind=engine)
+        except Exception as exc:
+            # Inform the user (visible in Streamlit UI) and fall back
+            try:
+                st.warning(f"Could not connect to DB at st.secrets['DB_URL']: {exc}. Falling back to local SQLite (dev.db) for development.")
+            except Exception:
+                # st may not be available in some contexts; ignore
+                pass
+
+    # Fallback to local SQLite file for development/testing
+    local_url = "sqlite:///./dev.db"
+    engine = create_engine(local_url, connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine)
 
