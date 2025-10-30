@@ -3,20 +3,19 @@ import numpy as np
 import plotly.graph_objects as go
 import random
 from datetime import datetime
-from streamlit_js_eval import streamlit_js_eval
-from components.achievements import init_achievements, check_achievement, display_achievements, ACHIEVEMENTS
+from components.achievements import init_achievements, check_achievement, display_achievements
 from components.stats import init_stats, update_stats, display_stats
 from components.themes import init_theme, get_current_theme, apply_theme, display_theme_selector
 from components.user_system import init_user_system, render_auth_ui, display_user_stats
 from components.stats_dashboard import display_leaderboard, display_global_stats
 from components.tutorial import run_tutorial
 from components.tournament import init_tournament_system, handle_tournament_ui
-from components.power_ups import init_power_ups, award_power_up, display_power_ups, handle_power_up_effects, POWER_UPS
+from components.power_ups import init_power_ups, award_power_up, display_power_ups, handle_power_up_effects
 from components.chat import init_chat, display_chat, send_game_event
 from database.manager import DatabaseManager
 
-# Toggle to make Dev Tools visible to anyone (temporary)
-FORCE_DEVTOOLS = True
+# Page config
+st.set_page_config(page_title="3D Tic Tac Toe", page_icon="🎮", layout="wide")
 
 # Initialize all session state
 if 'board' not in st.session_state:
@@ -24,8 +23,8 @@ if 'board' not in st.session_state:
     st.session_state.current_player = 'X'
     st.session_state.winner = None
     st.session_state.game_over = False
-    st.session_state.game_mode = 'human'  # 'human' or 'bot'
-    st.session_state.difficulty = 'easy'  # 'easy', 'medium', 'hard'
+    st.session_state.game_mode = 'human'
+    st.session_state.difficulty = 'medium'
     st.session_state.last_camera = None
     st.session_state.move_count = 0
     st.session_state.game_start_time = datetime.now()
@@ -34,6 +33,7 @@ if 'board' not in st.session_state:
     st.session_state.power_ups = {}
     st.session_state.tournament_active = False
     st.session_state.chat_messages = []
+    st.session_state.show_devtools = False
 
 # Initialize components
 init_achievements()
@@ -48,6 +48,7 @@ def create_3d_board():
     """Create a 3D visualization of the game board using Plotly"""
     x, y, z, text = [], [], [], []
     marker_colors = []
+    marker_sizes = []
     
     for i in range(4):
         for j in range(4):
@@ -57,29 +58,34 @@ def create_3d_board():
                 z.append(k)
                 cell_value = st.session_state.board[i, j, k]
                 text.append(cell_value if cell_value != '' else '')
+                
                 if cell_value == 'X':
-                    marker_colors.append('rgba(0, 0, 0, 1.0)')  # Black, fully opaque
+                    marker_colors.append('rgba(0, 0, 0, 1.0)')
+                    marker_sizes.append(45)
                 elif cell_value == 'O':
-                    marker_colors.append('rgba(255, 255, 255, 1.0)')  # White, fully opaque
+                    marker_colors.append('rgba(255, 255, 255, 1.0)')
+                    marker_sizes.append(45)
                 else:
-                    marker_colors.append('rgba(224, 224, 224, 0.3)')  # Light gray, semi-transparent
+                    marker_colors.append('rgba(220, 220, 220, 0.25)')
+                    marker_sizes.append(35)
 
     fig = go.Figure(data=[
         go.Scatter3d(
-            x=x, y=y, z=z, mode='markers',
+            x=x, y=y, z=z, 
+            mode='markers+text',
             marker=dict(
-                size=40,
+                size=marker_sizes,
                 color=marker_colors,
-                line=dict(width=1, color='#808080')
+                line=dict(width=2, color='#666666')
             ),
             text=text,
+            textfont=dict(size=22, color='#333333', family='Arial Black'),
             textposition="middle center",
-            textfont=dict(size=20),
-            hoverinfo='none'
+            hoverinfo='skip'
         )
     ])
 
-    # Add grid lines
+    # Add enhanced grid lines
     for i in range(5):
         for j in range(5):
             for lines in [
@@ -87,27 +93,34 @@ def create_3d_board():
                 ([i-0.5, i-0.5], [-0.5, 3.5], [j-0.5, j-0.5]),
                 ([-0.5, 3.5], [i-0.5, i-0.5], [j-0.5, j-0.5])
             ]:
-                fig.add_trace(go.Scatter3d(x=lines[0], y=lines[1], z=lines[2],
-                                           mode='lines', line=dict(color='#CCCCCC', width=1), showlegend=False))
+                fig.add_trace(go.Scatter3d(
+                    x=lines[0], y=lines[1], z=lines[2],
+                    mode='lines', 
+                    line=dict(color='#BBBBBB', width=1.5), 
+                    showlegend=False,
+                    hoverinfo='skip'
+                ))
 
     camera = st.session_state.last_camera or dict(
         up=dict(x=0, y=0, z=1),
         center=dict(x=1.5, y=1.5, z=1.5),
-        eye=dict(x=2.5, y=2.5, z=2.5)
+        eye=dict(x=2.8, y=2.8, z=2.8)
     )
 
     fig.update_layout(
         scene=dict(
-            xaxis=dict(range=[-1, 4], showgrid=False, zeroline=False, showticklabels=False),
-            yaxis=dict(range=[-1, 4], showgrid=False, zeroline=False, showticklabels=False),
-            zaxis=dict(range=[-1, 4], showgrid=False, zeroline=False, showticklabels=False),
+            xaxis=dict(range=[-1, 4], showgrid=False, zeroline=False, showticklabels=False, showbackground=False),
+            yaxis=dict(range=[-1, 4], showgrid=False, zeroline=False, showticklabels=False, showbackground=False),
+            zaxis=dict(range=[-1, 4], showgrid=False, zeroline=False, showticklabels=False, showbackground=False),
+            bgcolor='rgba(245, 245, 245, 0.3)'
         ),
         margin=dict(l=0, r=0, t=0, b=0),
         showlegend=False,
         scene_camera=camera,
-        paper_bgcolor='white',
-        plot_bgcolor='white',
-        uirevision=True
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        uirevision='constant',
+        height=500
     )
     return fig
 
@@ -128,6 +141,7 @@ def is_diagonal_win():
 
 def check_winner(board):
     """Check all possible winning combinations in 3D tic-tac-toe"""
+    # Straight lines
     for i in range(4):
         for j in range(4):
             if all(board[i, j, k] == board[i, j, 0] != '' for k in range(4)):
@@ -136,6 +150,7 @@ def check_winner(board):
                 return board[i, 0, j]
             if all(board[k, i, j] == board[0, i, j] != '' for k in range(4)):
                 return board[0, i, j]
+    
     # Face diagonals
     for i in range(4):
         if all(board[i, k, k] == board[i, 0, 0] != '' for k in range(4)):
@@ -146,6 +161,11 @@ def check_winner(board):
             return board[0, i, 0]
         if all(board[k, i, 3-k] == board[0, i, 3] != '' for k in range(4)):
             return board[0, i, 3]
+        if all(board[k, k, i] == board[0, 0, i] != '' for k in range(4)):
+            return board[0, 0, i]
+        if all(board[k, 3-k, i] == board[0, 3, i] != '' for k in range(4)):
+            return board[0, 3, i]
+    
     # Space diagonals
     if all(board[k, k, k] == board[0, 0, 0] != '' for k in range(4)):
         return board[0, 0, 0]
@@ -155,10 +175,11 @@ def check_winner(board):
         return board[0, 3, 0]
     if all(board[k, 3-k, 3-k] == board[0, 3, 3] != '' for k in range(4)):
         return board[0, 3, 3]
+    
     return None
 
 def evaluate_board(board):
-    """Evaluate the board state with a more sophisticated scoring system"""
+    """Evaluate the board state"""
     winner = check_winner(board)
     if winner == 'O':
         return 1000
@@ -166,16 +187,12 @@ def evaluate_board(board):
         return -1000
     
     score = 0
-    # Check for potential winning moves
     for i in range(4):
         for j in range(4):
-            # Check rows
             row = board[i, j, :]
             score += evaluate_line(row)
-            # Check columns
             col = board[i, :, j]
             score += evaluate_line(col)
-            # Check depth
             depth = board[:, i, j]
             score += evaluate_line(depth)
     
@@ -190,17 +207,17 @@ def evaluate_line(line):
     o_count = np.count_nonzero(line == 'O')
     
     if o_count == 3 and x_count == 0:
-        return 100  # Near win for O
+        return 100
     elif x_count == 3 and o_count == 0:
-        return -100  # Near win for X
+        return -100
     elif o_count == 2 and x_count == 0:
-        return 10  # Good position for O
+        return 10
     elif x_count == 2 and o_count == 0:
-        return -10  # Good position for X
+        return -10
     elif o_count == 1 and x_count == 0:
-        return 1  # Slight advantage for O
+        return 1
     elif x_count == 1 and o_count == 0:
-        return -1  # Slight advantage for X
+        return -1
     
     return 0
 
@@ -249,21 +266,16 @@ def make_bot_move():
     
     difficulty = st.session_state.difficulty
     if difficulty == 'easy':
-        # Random move with 20% chance of making a good move
         if random.random() < 0.2:
             z, y, x = make_smart_move(empty_cells, depth=1)
         else:
             z, y, x = random.choice(empty_cells)
-    
     elif difficulty == 'medium':
-        # Smart move with depth 2, but 30% chance of random move
         if random.random() < 0.7:
             z, y, x = make_smart_move(empty_cells, depth=2)
         else:
             z, y, x = random.choice(empty_cells)
-    
     else:  # hard
-        # Full minimax with depth 3
         z, y, x = make_smart_move(empty_cells, depth=3)
     
     make_move(z, y, x)
@@ -288,19 +300,25 @@ def make_move(z, y, x):
         return
     if st.session_state.board[z, y, x] != '':
         return
+    
     st.session_state.moves_history.append((z, y, x, st.session_state.current_player))
     st.session_state.move_count += 1
+    
     if st.session_state.power_ups:
         handle_power_up_effects(z, y, x)
+    
     st.session_state.board[z, y, x] = st.session_state.current_player
-    send_game_event(f"Player {st.session_state.current_player} placed at Layer {z+1}, Row {y+1}, Column {x+1}")
+    send_game_event(f"Player {st.session_state.current_player} → L{z+1}R{y+1}C{x+1}")
+    
     winner = check_winner(st.session_state.board)
     game_end = False
+    
     if winner:
         st.session_state.winner = winner
         st.session_state.game_over = True
         game_end = True
         duration = (datetime.now() - st.session_state.game_start_time).total_seconds()
+        
         if winner == 'X':
             if check_achievement('first_win'):
                 st.balloons()
@@ -310,186 +328,219 @@ def make_move(z, y, x):
                 check_achievement('bot_master')
             if is_diagonal_win():
                 check_achievement('diagonal_win')
-            if st.session_state.stats['current_streak'] == 4:
+            if st.session_state.stats.get('current_streak', 0) == 4:
                 check_achievement('undefeated')
     elif not np.any(st.session_state.board == ''):
         st.session_state.game_over = True
         game_end = True
     else:
         st.session_state.current_player = 'O' if st.session_state.current_player == 'X' else 'X'
+    
     if game_end:
         duration = (datetime.now() - st.session_state.game_start_time).total_seconds()
         update_stats(winner, st.session_state.move_count, duration)
         if st.session_state.tournament_active and winner:
             handle_tournament_ui(winner)
+    
     if not st.session_state.game_over and st.session_state.game_mode == 'bot' and st.session_state.current_player == 'O':
         make_bot_move()
-    update_game_display()
-
-def update_game_display():
-    """Update the game display with enhanced feedback"""
-    with st.session_state.status_container:
-        st.empty()
-        if st.session_state.game_over:
-            if st.session_state.winner:
-                win_message = (
-                    "🏆 Congratulations! "
-                    f"Player {st.session_state.winner} wins in {st.session_state.move_count} moves! "
-                    f"Game duration: {(datetime.now() - st.session_state.game_start_time).seconds} seconds"
-                )
-                st.success(win_message)
-                # Show game statistics
-                st.info(f"Moves played: {len(st.session_state.moves_history)}")
-                if st.session_state.winner == 'X' and st.session_state.game_mode == 'bot':
-                    st.success("Impressive! You've beaten the bot! 🎮")
-            else:
-                st.info("🤝 It's a draw! Well played by both sides!")
-        else:
-            player_turn = "Your turn" if st.session_state.current_player == 'X' else "Bot's turn" \
-                if st.session_state.game_mode == 'bot' else f"Player {st.session_state.current_player}'s turn"
-            st.info(f"📍 {player_turn} (Move {st.session_state.move_count + 1})")
-            
-            # Show last move if available
-            if st.session_state.moves_history:
-                last_z, last_y, last_x, last_player = st.session_state.moves_history[-1]
-                st.text(f"Last move: Player {last_player} at Layer {last_z+1}, Row {last_y+1}, Column {last_x+1}")
-    
-    with st.session_state.board_container:
-        st.empty()
-        refresh_board()
-
-def refresh_board():
-    # Use a unique key for the Plotly chart
-    st.plotly_chart(create_3d_board(), use_container_width=True, key="game_board_3d")
-    st.markdown("### Game Board")
-    layers = st.columns(4)
-    for z in range(4):
-        with layers[z]:
-            st.markdown(f"**Layer {z+1}**")
-            for y in range(4):
-                cols = st.columns(4)
-                for x in range(4):
-                    with cols[x]:
-                        cell_value = st.session_state.board[z, y, x]
-                        label = cell_value if cell_value else " "
-                        disabled = st.session_state.game_over or cell_value != ''
-                        if st.button(label, key=f"btn_{z}_{y}_{x}", disabled=disabled, use_container_width=True):
-                            make_move(z, y, x)
 
 def reset_game():
     st.session_state.board = np.full((4, 4, 4), '', dtype=object)
     st.session_state.current_player = 'X'
     st.session_state.winner = None
     st.session_state.game_over = False
-    update_game_display()
+    st.session_state.move_count = 0
+    st.session_state.game_start_time = datetime.now()
+    st.session_state.moves_history = []
+    st.rerun()
 
-# Initialize containers
-for key in ['game_container', 'status_container', 'board_container']:
-    if key not in st.session_state:
-        st.session_state[key] = st.empty()
+# ============= UI =============
 
-# UI
-st.title("3D Tic Tac Toe")
-st.markdown("**4x4x4 Cube** - Get 4 in a row to win!")
+# Header
+st.markdown("""
+    <div style='text-align: center; padding: 1rem 0;'>
+        <h1 style='margin: 0; font-size: 3rem; font-weight: 700;'>🎮 3D Tic Tac Toe</h1>
+        <p style='margin: 0.5rem 0 0 0; font-size: 1.1rem; color: #666;'>4×4×4 Cube Challenge</p>
+    </div>
+""", unsafe_allow_html=True)
 
-# Dev Tools section at the top (visible to anyone when FORCE_DEVTOOLS=True)
-if FORCE_DEVTOOLS or st.session_state.get('user'):
-    with st.expander("🛠️ Dev Tools (temporary - visible to all)"):
-        if st.button("Seed Database with Sample Data", type="primary"):
-            try:
-                DatabaseManager.seed_database()
-                st.success("✅ Database seeded with sample users and games. Sample users (password is 'password'):\n- alice\n- bob\n- carol\n- dave")
-                st.experimental_rerun()
-            except Exception as e:
-                st.error(f"Failed to seed database: {str(e)}")
-                if "DB_URL not found in Streamlit secrets" in str(e):
-                    st.info("💡 Make sure to add your DB_URL in your Streamlit secrets. [Learn more](https://docs.streamlit.io/streamlit-cloud/get-started/deploy-an-app/connect-to-data-sources/secrets-management)")
-
-# Render auth UI (sidebar) and user stats
+# Auth UI and User Stats
 try:
     render_auth_ui()
     display_user_stats()
-except Exception:
-    # Render/auth functions expect session_state keys to be initialized.
-    # init_user_system() above should prevent errors, but swallow any unexpected
-    # issues in UI rendering so the main app stays up.
+except Exception as e:
     pass
 
-# Social Features
-col1, col2 = st.columns([2, 3])
-with col1:
-    handle_tournament_ui()
-with col2:
-    display_chat()
+# Main game area
+col_left, col_right = st.columns([2, 1])
 
-# Power-ups
-if st.session_state.current_player == 'X':
-    display_power_ups()
-
-# Settings
-col1, col2, col3 = st.columns(3)
-with col1:
-    game_mode = st.selectbox("Game Mode", ['Human vs Human', 'Human vs Bot'],
-                             index=0 if st.session_state.game_mode == 'human' else 1)
-    st.session_state.game_mode = 'human' if game_mode == 'Human vs Human' else 'bot'
-with col2:
-    if st.session_state.game_mode == 'bot':
-        difficulty = st.selectbox("Bot Difficulty", ['Easy', 'Medium', 'Hard'],
-                                  index=['easy', 'medium', 'hard'].index(st.session_state.difficulty))
-        st.session_state.difficulty = difficulty.lower()
-with col3:
-    if st.button("Reset Game", use_container_width=True):
-        reset_game()
-
-# Status
-with st.session_state.status_container:
+with col_left:
+    # Game status
     if st.session_state.game_over:
         if st.session_state.winner:
-            st.success(f"Player {st.session_state.winner} wins!")
+            duration = (datetime.now() - st.session_state.game_start_time).seconds
+            st.success(f"🏆 Player **{st.session_state.winner}** wins in {st.session_state.move_count} moves! ({duration}s)")
+            if st.session_state.winner == 'X' and st.session_state.game_mode == 'bot':
+                st.info("🎯 Victory against the bot!")
         else:
-            st.info("It's a draw!")
+            st.info("🤝 It's a draw! Well played!")
     else:
-        st.info(f"Current Player: **{st.session_state.current_player}**")
+        player_label = "Your turn" if st.session_state.current_player == 'X' else \
+                      ("Bot's turn" if st.session_state.game_mode == 'bot' else f"Player {st.session_state.current_player}'s turn")
+        st.info(f"📍 {player_label} • Move #{st.session_state.move_count + 1}")
+        
+        if st.session_state.moves_history:
+            last_z, last_y, last_x, last_player = st.session_state.moves_history[-1]
+            st.caption(f"Last: Player {last_player} at Layer {last_z+1}, Row {last_y+1}, Column {last_x+1}")
+    
+    # 3D Board
+    st.plotly_chart(create_3d_board(), use_container_width=True, key="board_3d")
+    
+    # 2D Layer Controls
+    st.markdown("### 📊 Layer Controls")
+    layers = st.columns(4)
+    for z in range(4):
+        with layers[z]:
+            st.markdown(f"**L{z+1}**")
+            for y in range(4):
+                cols = st.columns(4)
+                for x in range(4):
+                    with cols[x]:
+                        cell_value = st.session_state.board[z, y, x]
+                        label = cell_value if cell_value else "·"
+                        disabled = st.session_state.game_over or cell_value != '' or \
+                                 (st.session_state.game_mode == 'bot' and st.session_state.current_player == 'O')
+                        
+                        if st.button(label, key=f"b_{z}_{y}_{x}", disabled=disabled, use_container_width=True):
+                            make_move(z, y, x)
 
-# Board
-st.plotly_chart(create_3d_board(), use_container_width=True)
-refresh_board()
+with col_right:
+    # Game Controls
+    st.markdown("### ⚙️ Game Settings")
+    
+    game_mode = st.selectbox(
+        "Mode",
+        ['Human vs Human', 'Human vs Bot'],
+        index=0 if st.session_state.game_mode == 'human' else 1,
+        key="mode_selector"
+    )
+    st.session_state.game_mode = 'human' if game_mode == 'Human vs Human' else 'bot'
+    
+    if st.session_state.game_mode == 'bot':
+        difficulty = st.selectbox(
+            "Difficulty",
+            ['Easy', 'Medium', 'Hard'],
+            index=['easy', 'medium', 'hard'].index(st.session_state.difficulty),
+            key="difficulty_selector"
+        )
+        st.session_state.difficulty = difficulty.lower()
+    
+    if st.button("🔄 New Game", use_container_width=True, type="primary"):
+        reset_game()
+    
+    st.divider()
+    
+    # Power-ups
+    if st.session_state.current_player == 'X':
+        display_power_ups()
+    
+    # Quick Stats
+    st.markdown("### 📈 Quick Stats")
+    stats = st.session_state.get('stats', {})
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Wins", stats.get('wins', 0))
+    with col2:
+        st.metric("Games", stats.get('total_games', 0))
+
+# Social Features
+st.divider()
+social_col1, social_col2 = st.columns([1, 1])
+with social_col1:
+    handle_tournament_ui()
+with social_col2:
+    display_chat()
 
 # Instructions
 with st.expander("ℹ️ How to Play"):
     st.markdown("""
-    **3D Tic Tac Toe Rules:**
-    - The game is played on a 4x4x4 cube (4 layers)
-    - Players alternate placing X's and O's
-    - Get **4 in a row** to win!
-    - Use the 3D view to see the cube from different angles
-    - Click on the 2D layers to make moves
+    **Rules:**
+    - Play on a 4×4×4 cube (4 layers)
+    - Players alternate placing X and O
+    - Get **4 in a row** to win (any direction!)
+    - Rotate the 3D view by dragging
+    - Click layer buttons to place your mark
+    
+    **Winning Lines:**
+    - Horizontal, vertical, or depth lines
+    - Face diagonals (on any 2D plane)
+    - Space diagonals (through the cube)
     """)
 
-# Styling
-st.markdown("""
-<style>
-.stButton button {
-    font-size: 24px;
-    font-weight: bold;
-    height: 60px;
-    background-color: #FFFFFF;
-    color: #333333;
-    border: 1px solid #CCCCCC;
-}
-.st-success {font-size: 24px; padding: 1rem; border-radius: 10px;}
-.st-info {font-size: 20px; padding: 0.8rem; border-radius: 10px;}
-.streamlit-expanderHeader {font-size: 16px; color: #333;}
-</style>
-""", unsafe_allow_html=True)
-
-# Developer tools (sidebar duplicate) - shown when forced or user present
-if FORCE_DEVTOOLS or st.session_state.get('user'):
-    with st.sidebar.expander("Dev Tools"):
-        if st.button("Seed Database (dev)"):
+# Dev Tools (hidden by default, accessible only with proper authentication)
+if st.session_state.get('user', {}).get('is_admin', False):
+    with st.sidebar.expander("🔧 Admin Tools"):
+        if st.button("Seed Database"):
             try:
                 DatabaseManager.seed_database()
-                st.success("Database seeded with sample users and games.")
-                st.experimental_rerun()
+                st.success("✅ Database seeded")
+                st.rerun()
             except Exception as e:
-                st.error(f"Failed to seed database: {e}")
+                st.error(f"Error: {str(e)}")
+
+# Enhanced Styling
+st.markdown("""
+<style>
+    /* Button styling */
+    .stButton button {
+        font-size: 20px;
+        font-weight: bold;
+        height: 55px;
+        border-radius: 8px;
+        border: 2px solid #ddd;
+        transition: all 0.2s;
+    }
+    
+    .stButton button:hover:not(:disabled) {
+        border-color: #888;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transform: translateY(-1px);
+    }
+    
+    .stButton button:disabled {
+        opacity: 0.4;
+    }
+    
+    /* Alert styling */
+    .stAlert {
+        border-radius: 10px;
+        border-left: 4px solid;
+        padding: 1rem;
+        font-size: 1.1rem;
+    }
+    
+    /* Metric styling */
+    [data-testid="stMetricValue"] {
+        font-size: 1.8rem;
+        font-weight: 700;
+    }
+    
+    /* Selectbox styling */
+    .stSelectbox {
+        margin-bottom: 1rem;
+    }
+    
+    /* Hide default Streamlit elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .stButton button {
+            height: 45px;
+            font-size: 18px;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
